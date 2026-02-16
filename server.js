@@ -1,4 +1,5 @@
 // Railway Deployment Trigger: 2026-02-16
+require('dotenv').config();
 const express = require('express');
 const https = require('https');
 const http = require('http');
