@@ -16,6 +16,7 @@
   });
 
   console.log("OwnDC App loading...");
+  const Livekit = window.LivekitClient || window.Livekit;
   // State
   let currentUser = null;
   let socket = null;
