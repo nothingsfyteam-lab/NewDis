@@ -420,13 +420,16 @@
             <div id="edit-profile-form" style="display:none;margin-top:16px;">
               <div class="form-group">
                 <label>Profile Picture</label>
-                <input type="file" id="settings-avatar-file" accept="image/*" style="display:block;width:100%;padding:8px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;">
-                <p style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">Upload an image (max 5MB). Supports JPG, PNG, GIF, WebP.</p>
+                <input type="file" id="settings-avatar-file" accept="image/*"
+                  style="display:block;width:100%;padding:8px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;">
+                <p style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">Upload an image (max 5MB). Supports
+                  JPG, PNG, GIF, WebP.</p>
               </div>
               <div class="form-group">
                 <label>Avatar URL (Alternative)</label>
                 <input id="settings-avatar-input" placeholder="https://...">
-                <p style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">Or paste an image URL instead of uploading.</p>
+                <p style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">Or paste an image URL instead of
+                  uploading.</p>
               </div>
               <div class="form-group">
                 <label>Bio</label>
@@ -600,6 +603,7 @@
   </audio>
 
   <script src="/socket.io/socket.io.js"></script>
+  <script src="https://unpkg.com/livekit-client/dist/livekit-client.umd.min.js"></script>
   <script src="/js/app.js"></script>
 </body>
 

@@ -57,6 +57,7 @@ app.use('/api/channels', require('./routes/channels'));
 app.use('/api/messages', require('./routes/messages'));
 app.use('/api/servers', require('./routes/servers'));
 app.use('/api/users', require('./routes/users'));
+app.use('/api/livekit', require('./routes/livekit'));
 
 // Socket.IO
 require('./socket')(io);

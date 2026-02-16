@@ -86,7 +86,7 @@ module.exports = function (io) {
       const allMembers = Array.from(room);
       const placeholders = allMembers.map(() => '?').join(',');
       const fullRoomUsers = db.prepare(`SELECT id, username, avatar FROM users WHERE id IN (${placeholders})`).all(...allMembers);
-      
+
       io.to(`voice:${channelId}`).emit('voice-room-update', { channelId, users: fullRoomUsers });
       // Also emit globally for sidebar synchronization, but maybe throttle this in the future if too many rooms
       io.emit('voice-room-update', { channelId, users: fullRoomUsers });
@@ -128,7 +128,7 @@ module.exports = function (io) {
       if (peerSocket) io.to(peerSocket).emit('candidate', { from: userId, candidate: data.candidate });
     });
 
-    // Direct Call Signaling
+    // Direct Call Signaling (Simplified for LiveKit)
     socket.on('call-user', (data) => {
       const targetSocket = onlineUsers.get(data.to);
       const caller = db.prepare('SELECT username, avatar FROM users WHERE id = ?').get(userId);
@@ -137,7 +137,7 @@ module.exports = function (io) {
           from: userId,
           callerName: caller.username,
           callerAvatar: caller.avatar,
-          signal: data.signal, // Initial Offer
+          callRoomId: data.callRoomId,
           withVideo: data.withVideo
         });
       }
@@ -145,18 +145,12 @@ module.exports = function (io) {
 
     socket.on('answer-call', (data) => {
       const targetSocket = onlineUsers.get(data.to);
-      if (targetSocket) io.to(targetSocket).emit('call-accepted', { from: userId, signal: data.signal });
+      if (targetSocket) io.to(targetSocket).emit('call-accepted', { from: userId });
     });
 
     socket.on('reject-call', (data) => {
       const targetSocket = onlineUsers.get(data.to);
       if (targetSocket) io.to(targetSocket).emit('call-rejected', { from: userId });
-    });
-
-    // ICE Candidates for Direct Call
-    socket.on('call-ice-candidate', (data) => {
-      const targetSocket = onlineUsers.get(data.to);
-      if (targetSocket) io.to(targetSocket).emit('call-ice-candidate', { from: userId, candidate: data.candidate });
     });
 
     // End Call
