@@ -166,16 +166,18 @@
     // --- Voice State ---
     socket.on('voice-room-update', (data) => {
       voiceStates[data.channelId] = data.users;
-      if (data.channelId === 'public-voice-test-talk') {
+      if (data.channelId === 'global-test-channel-2024' || data.channelId === 'public-voice-test-talk') {
         renderPublicVoiceUsers(data.users);
       }
-      // Re-render channels if we're looking at a server
+      // Re-render
       if (currentServerId) loadChannels(currentServerId);
+      loadHomeChannels();
     });
 
     socket.on('voice-states-sync', (states) => {
       voiceStates = { ...voiceStates, ...states };
       if (currentServerId) loadChannels(currentServerId);
+      loadHomeChannels();
     });
 
     // Mobile View Helpers
@@ -506,10 +508,13 @@
                  onclick="window.app.openChannel('${ch.id}', 'voice')">
                <span>🔊</span> <span style="flex:1;">${esc(ch.name)}</span>
             </div>
-            <div class="voice-user-list" style="display:flex; flex-wrap:wrap; gap:4px; padding: 4px 12px;">
+            <div class="voice-user-list" style="margin-bottom: 8px;">
                ${usersInRoom.map(u => `
-                 <div class="voice-user-row" style="padding:0; height:auto; background:transparent;" title="${esc(u.username)}">
-                    <div class="user-avatar-xs" style="width:24px; height:24px; border:1.5px solid var(--accent);">${u.avatar ? `<img src="${u.avatar}" />` : u.username[0].toUpperCase()}</div>
+                 <div class="voice-user-row" style="padding: 2px 16px; display:flex; align-items:center; gap:10px;" title="${esc(u.username)}">
+                    <div class="user-avatar-xs" style="width:20px; height:20px; border-radius:50%; overflow:hidden; display:flex; align-items:center; justify-content:center; background:var(--bg-active); font-size:10px; flex-shrink:0;">
+                        ${u.avatar ? `<img src="${u.avatar}" style="width:100%; height:100%; object-fit:cover;" />` : u.username[0].toUpperCase()}
+                    </div>
+                    <span style="font-size:0.85rem; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${esc(u.username)}</span>
                  </div>
                `).join('')}
             </div>`;
@@ -773,6 +778,16 @@
               <span style="width:8px;height:8px;border-radius:50%;background:var(--success);"></span>
               ${userCount > 0 ? userCount : ''}
             </span>
+          </div>
+          <div class="voice-user-list" style="margin-bottom: 8px;">
+             ${testUsers.map(u => `
+               <div class="voice-user-row" style="padding: 2px 24px; display:flex; align-items:center; gap:10px;">
+                  <div class="user-avatar-xs" style="width:18px; height:18px; border-radius:50%; overflow:hidden; display:flex; align-items:center; justify-content:center; background:var(--bg-active); font-size:9px; flex-shrink:0;">
+                      ${u.avatar ? `<img src="${u.avatar}" style="width:100%; height:100%; object-fit:cover;" />` : u.username[0].toUpperCase()}
+                  </div>
+                  <span style="font-size:0.8rem; color:var(--text-secondary);">${esc(u.username)}</span>
+               </div>
+             `).join('')}
           </div>
         `;
       }
@@ -1145,6 +1160,8 @@
       { urls: 'stun:stun2.l.google.com:19302' },
       { urls: 'stun:stun3.l.google.com:19302' },
       { urls: 'stun:stun4.l.google.com:19302' },
+      { urls: 'stun:global.stun.twilio.com:3478' },
+      { urls: 'stun:stun.cloudflare.com:3478' },
       // FREE TURN servers for NAT traversal (critical for production)
       {
         urls: 'turn:openrelay.metered.ca:80',
