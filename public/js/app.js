@@ -16,7 +16,8 @@
   });
 
   console.log("OwnDC App loading...");
-  const Livekit = window.LivekitClient || window.Livekit;
+  // Helper to ensure we get the library regardless of UMD export name
+  const getLivekit = () => window.LivekitClient || window.LiveKitClient || window.Livekit || window.LiveKit;
   // State
   let currentUser = null;
   let socket = null;
@@ -1084,13 +1085,13 @@
     try {
       const data = await api(`/api/livekit/token?room=${channelId}&username=${currentUser.username}`);
 
-      lkRoom = new Livekit.Room({
+      lkRoom = new (getLivekit().Room)({
         adaptiveStream: true,
         dynacast: true,
       });
 
       // Remote track handling
-      lkRoom.on(Livekit.RoomEvent.TrackSubscribed, (track, publication, participant) => {
+      lkRoom.on(getLivekit().RoomEvent.TrackSubscribed, (track, publication, participant) => {
         console.log(`[LiveKit] Subscribed to ${track.kind} from ${participant.identity}`);
         if (track.kind === 'audio') {
           const el = track.attach();
@@ -1108,16 +1109,16 @@
         }
       });
 
-      lkRoom.on(Livekit.RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
+      lkRoom.on(getLivekit().RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
         track.detach().forEach(el => el.remove());
       });
 
-      lkRoom.on(Livekit.RoomEvent.ParticipantDisconnected, (participant) => {
+      lkRoom.on(getLivekit().RoomEvent.ParticipantDisconnected, (participant) => {
         const el = document.getElementById(`audio-${participant.identity}`);
         if (el) el.remove();
       });
 
-      lkRoom.on(Livekit.RoomEvent.Disconnected, () => {
+      lkRoom.on(getLivekit().RoomEvent.Disconnected, () => {
         console.log('[LiveKit] Disconnected from room');
         document.querySelectorAll('audio[id^="audio-"]').forEach(a => a.remove());
       });
@@ -1359,12 +1360,12 @@
     try {
       const data = await api(`/api/livekit/token?room=${roomId}&username=${currentUser.username}`);
 
-      lkRoom = new Livekit.Room({
+      lkRoom = new (getLivekit().Room)({
         adaptiveStream: true,
         dynacast: true,
       });
 
-      lkRoom.on(Livekit.RoomEvent.TrackSubscribed, (track, publication, participant) => {
+      lkRoom.on(getLivekit().RoomEvent.TrackSubscribed, (track, publication, participant) => {
         console.log(`[LiveKit Call] Subscribed to ${track.kind} from ${participant.identity}`);
         if (track.kind === 'video') {
           const remoteVideo = document.getElementById('remote-video');
@@ -1381,11 +1382,11 @@
         startCallDurationTimer();
       });
 
-      lkRoom.on(Livekit.RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
+      lkRoom.on(getLivekit().RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
         track.detach().forEach(el => el.remove());
       });
 
-      lkRoom.on(Livekit.RoomEvent.Disconnected, () => {
+      lkRoom.on(getLivekit().RoomEvent.Disconnected, () => {
         console.log('[LiveKit Call] Disconnected');
         endCall();
       });
@@ -1403,7 +1404,7 @@
 
         // Find and attach local camera track to preview
         setTimeout(() => {
-          const publication = lkRoom.localParticipant.getTrack(Livekit.Track.Source.Camera);
+          const publication = lkRoom.localParticipant.getTrack(getLivekit().Track.Source.Camera);
           if (publication && publication.videoTrack) {
             publication.videoTrack.attach(localVideo);
           }
@@ -1501,7 +1502,7 @@
       document.getElementById('toggle-video').style.background = !isEnabled ? 'rgba(255,255,255,0.1)' : 'var(--danger)';
       document.getElementById('local-video').style.display = !isEnabled ? 'block' : 'none';
       if (!isEnabled) {
-        const pub = lkRoom.localParticipant.getTrack(Livekit.Track.Source.Camera);
+        const pub = lkRoom.localParticipant.getTrack(getLivekit().Track.Source.Camera);
         if (pub && pub.videoTrack) pub.videoTrack.attach(document.getElementById('local-video'));
       }
     }
