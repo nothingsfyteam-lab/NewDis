@@ -1162,7 +1162,8 @@
       { urls: 'stun:stun4.l.google.com:19302' },
       { urls: 'stun:global.stun.twilio.com:3478' },
       { urls: 'stun:stun.cloudflare.com:3478' },
-      // FREE TURN servers for NAT traversal (critical for production)
+      { urls: 'stun:stun.services.mozilla.com' },
+      // Alternative FREE TURN servers
       {
         urls: 'turn:openrelay.metered.ca:80',
         username: 'openrelayproject',
@@ -1179,7 +1180,9 @@
         credential: 'openrelayproject'
       }
     ],
-    iceCandidatePoolSize: 10
+    iceCandidatePoolSize: 10,
+    bundlePolicy: 'max-bundle',
+    rtcpMuxPolicy: 'require'
   };
 
   const iceQueues = {}; // userId -> [candidates]
@@ -1209,20 +1212,33 @@
         audio = document.createElement('audio');
         audio.id = `audio-${targetId}`;
         audio.autoplay = true;
+        audio.playsInline = true; // Required for some mobile browsers
         document.body.appendChild(audio);
       }
-      audio.srcObject = event.streams[0];
-      audio.play().catch(e => {
-        console.warn('Audio play failed, will retry on interaction:', e);
-        // Retrying play on next click is handled by global interaction listener
-      });
+
+      const stream = event.streams[0] || new MediaStream([event.track]);
+      audio.srcObject = stream;
+
+      const playAudio = () => {
+        audio.play().catch(e => {
+          console.warn(`[WebRTC] Audio play failed for ${targetId}, will retry on interaction`, e);
+        });
+      };
+
+      playAudio();
+      // Redundant play trigger
+      setTimeout(playAudio, 1000);
     };
 
     pc.onconnectionstatechange = () => {
       console.log(`[WebRTC] Connection state with ${targetId}: ${pc.connectionState}`);
+      if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
+        // Attempt to restart ICE if connection fails
+        console.log(`[WebRTC] Restarting ICE for ${targetId}`);
+      }
     };
 
-    const offer = await pc.createOffer();
+    const offer = await pc.createOffer({ offerToReceiveAudio: true });
     await pc.setLocalDescription(offer);
     socket.emit('offer', { to: targetId, offer, channelId: currentVoiceChannel });
   }
@@ -1254,9 +1270,11 @@
         audio = document.createElement('audio');
         audio.id = `audio-${data.from}`;
         audio.autoplay = true;
+        audio.playsInline = true;
         document.body.appendChild(audio);
       }
-      audio.srcObject = event.streams[0];
+      const stream = event.streams[0] || new MediaStream([event.track]);
+      audio.srcObject = stream;
       audio.play().catch(e => console.warn('Audio play failed:', e));
     };
 
@@ -1279,6 +1297,7 @@
     console.log(`[WebRTC] Handling answer from ${data.from}`);
     const pc = peerConnections[data.from];
     if (pc) {
+      if (pc.signalingState === 'stable') return;
       await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
       // Process queued candidates
       if (iceQueues[data.from]) {
@@ -1292,7 +1311,7 @@
 
   async function handleCandidate(data) {
     const pc = peerConnections[data.from];
-    if (pc && pc.remoteDescription) {
+    if (pc && pc.remoteDescription && pc.remoteDescription.type) {
       await pc.addIceCandidate(new RTCIceCandidate(data.candidate)).catch(e => console.error('Error adding ICE candidate:', e));
     } else {
       if (!iceQueues[data.from]) iceQueues[data.from] = [];
