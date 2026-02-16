@@ -1,0 +1,10 @@
+node_modules/
+.env
+*.db
+*.log
+.DS_Store
+dist/
+build/
+.vscode/
+key.pem
+cert.pem
