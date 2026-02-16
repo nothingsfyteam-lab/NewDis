@@ -127,4 +127,42 @@ try { db.exec("CREATE INDEX IF NOT EXISTS idx_server_members_user_id ON server_m
 try { db.exec("CREATE INDEX IF NOT EXISTS idx_channel_members_user_id ON channel_members(user_id)"); } catch (e) { }
 try { db.exec("CREATE INDEX IF NOT EXISTS idx_friends_participants ON friends(user_id, friend_id)"); } catch (e) { }
 
+// Create a public "Test Channel" for all users
+const { v4: uuidv4 } = require('uuid');
+const testChannelId = 'global-test-channel-2024';
+const systemUserId = 'system-user';
+
+// Create system user if doesn't exist
+try {
+  const existingSystem = db.prepare('SELECT id FROM users WHERE id = ?').get(systemUserId);
+  if (!existingSystem) {
+    db.prepare(`INSERT INTO users (id, username, email, password_hash, avatar, status) 
+                VALUES (?, ?, ?, ?, ?, ?)`).run(
+      systemUserId,
+      'System',
+      'system@owndc.local',
+      'no-password',
+      '🌐',
+      'online'
+    );
+  }
+} catch (e) { }
+
+// Create global test channel if doesn't exist
+try {
+  const existingChannel = db.prepare('SELECT id FROM channels WHERE id = ?').get(testChannelId);
+  if (!existingChannel) {
+    db.prepare(`INSERT INTO channels (id, name, type, owner_id, server_id) 
+                VALUES (?, ?, ?, ?, NULL)`).run(
+      testChannelId,
+      '🧪 Global Test Channel',
+      'voice',
+      systemUserId
+    );
+    console.log('✅ Created global test channel for all users');
+  }
+} catch (e) {
+  console.log('Test channel already exists or error:', e.message);
+}
+
 module.exports = db;

@@ -752,10 +752,35 @@
       // Filter channels without server_id (personal/home channels)
       const homeChannels = channels.filter(c => !c.server_id);
 
-      if (homeChannels.length === 0) {
-        container.innerHTML = '<div class="menu-label" style="text-transform:none;font-weight:400;color:var(--text-muted);padding:8px 0;">No channels yet</div>';
-      } else {
-        container.innerHTML = homeChannels.map(ch => {
+      // Find global test channel
+      const testChannel = homeChannels.find(ch => ch.id === 'global-test-channel-2024');
+      const otherChannels = homeChannels.filter(ch => ch.id !== 'global-test-channel-2024');
+
+      let html = '';
+
+      // Show test channel first with special styling
+      if (testChannel) {
+        const testUsers = voiceStates[testChannel.id] || [];
+        const userCount = testUsers.length;
+        html += `
+          <div class="menu-label">PUBLIC TEST CHANNEL</div>
+          <div class="nav-item ${currentContext.type === 'channel' && currentContext.id === testChannel.id ? 'active' : ''}"
+               onclick="window.app.openHomeChannel('${testChannel.id}', '${testChannel.type}')"
+               style="display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer;border-radius:8px;margin:2px 0;background: linear-gradient(135deg, rgba(88, 101, 242, 0.1), rgba(236, 72, 153, 0.1));border:1px solid var(--accent);${currentContext.type === 'channel' && currentContext.id === testChannel.id ? 'background:var(--accent-light);' : ''}">
+            <span style="font-size:1.2rem;">🧪</span>
+            <span style="flex:1;font-weight:600;font-size:0.95rem;">${esc(testChannel.name)}</span>
+            <span style="font-size:0.7rem;color:var(--success);display:flex;align-items:center;gap:4px;">
+              <span style="width:8px;height:8px;border-radius:50%;background:var(--success);"></span>
+              ${userCount > 0 ? userCount : ''}
+            </span>
+          </div>
+        `;
+      }
+
+      // Show other channels
+      if (otherChannels.length > 0) {
+        html += '<div class="menu-label" style="margin-top:16px;">YOUR CHANNELS</div>';
+        html += otherChannels.map(ch => {
           const isVoice = ch.type === 'voice';
           const icon = isVoice ? '🔊' : '#';
           return `
@@ -768,6 +793,12 @@
             </div>
           `;
         }).join('');
+      }
+
+      if (html === '') {
+        container.innerHTML = '<div class="menu-label" style="text-transform:none;font-weight:400;color:var(--text-muted);padding:8px 0;">No channels yet</div>';
+      } else {
+        container.innerHTML = html;
       }
     } catch (e) {
       console.error('Failed to load home channels:', e);
@@ -1068,7 +1099,7 @@
     if (voiceUsers) voiceUsers.innerHTML = ''; // Clear avatar list
   }
 
-  function addVoiceUser(id, name) {
+  function addVoiceUser(id, name, avatar) {
     // This is for the "Voice Channel" specific view if we were inside one, 
     // but we also have the "Public Voice Widget".
     // For now, this updates the generic voice-users container if it exists.
@@ -1078,7 +1109,18 @@
       d.id = `vu-${id}`;
       d.className = 'user-avatar-sm';
       d.title = name;
-      d.textContent = (name || 'U')[0].toUpperCase();
+      d.style.position = 'relative';
+      d.style.overflow = 'hidden';
+
+      if (avatar && !avatar.startsWith('🌐')) {
+        // Show actual avatar image
+        d.style.backgroundImage = `url(${avatar})`;
+        d.style.backgroundSize = 'cover';
+        d.style.backgroundPosition = 'center';
+      } else {
+        // Show initial
+        d.textContent = (name || 'U')[0].toUpperCase();
+      }
       c.appendChild(d);
     }
 
@@ -2423,6 +2465,107 @@
 
     // Expose to window.app
     window.app.showCreateHomeChannelModal = showCreateHomeChannelModal;
+
+    // --- Settings Modal Logic ---
+    document.getElementById('sidebar-settings-btn')?.addEventListener('click', async () => {
+      document.getElementById('settings-modal').style.display = 'flex';
+      const user = await api('/api/auth/me');
+      document.getElementById('settings-username').textContent = user.username;
+
+      const avatarPreview = document.getElementById('settings-avatar-preview');
+      if (user.avatar && !user.avatar.startsWith('🌐')) {
+        avatarPreview.style.backgroundImage = `url(${user.avatar})`;
+        avatarPreview.style.backgroundSize = 'cover';
+        avatarPreview.textContent = '';
+      } else {
+        avatarPreview.textContent = user.username[0].toUpperCase();
+      }
+    });
+
+    document.getElementById('edit-profile-btn')?.addEventListener('click', () => {
+      document.getElementById('edit-profile-form').style.display = 'block';
+      document.getElementById('edit-profile-btn').style.display = 'none';
+    });
+
+    document.getElementById('cancel-profile-edit')?.addEventListener('click', () => {
+      document.getElementById('edit-profile-form').style.display = 'none';
+      document.getElementById('edit-profile-btn').style.display = 'block';
+    });
+
+    document.getElementById('save-profile-btn')?.addEventListener('click', async () => {
+      try {
+        const fileInput = document.getElementById('settings-avatar-file');
+        const avatarUrl = document.getElementById('settings-avatar-input').value.trim();
+        const bio = document.getElementById('settings-bio-input').value.trim();
+
+        let uploadedAvatar = null;
+
+        // Upload file if selected
+        if (fileInput.files && fileInput.files[0]) {
+          const formData = new FormData();
+          formData.append('avatar', fileInput.files[0]);
+
+          const response = await fetch('/api/users/avatar', {
+            method: 'POST',
+            body: formData
+          });
+
+          if (!response.ok) throw new Error('Avatar upload failed');
+          const result = await response.json();
+          uploadedAvatar = result.avatar;
+        }
+
+        // Update profile
+        await api('/api/users/me', {
+          method: 'PUT',
+          body: {
+            avatar: uploadedAvatar || avatarUrl || undefined,
+            bio: bio || undefined
+          }
+        });
+
+        showNotification('Profile Updated', 'Your profile has been updated successfully!', 'success');
+        document.getElementById('edit-profile-form').style.display = 'none';
+        document.getElementById('edit-profile-btn').style.display = 'block';
+
+        // Refresh user info
+        const user = await api('/api/auth/me');
+        const avatarPreview = document.getElementById('settings-avatar-preview');
+        const sidebarAvatar = document.querySelector('.user-panel .user-avatar-sm');
+
+        if (user.avatar && !user.avatar.startsWith('🌐')) {
+          avatarPreview.style.backgroundImage = `url(${user.avatar})`;
+          avatarPreview.style.backgroundSize = 'cover';
+          avatarPreview.textContent = '';
+
+          if (sidebarAvatar) {
+            sidebarAvatar.style.backgroundImage = `url(${user.avatar})`;
+            sidebarAvatar.style.backgroundSize = 'cover';
+            sidebarAvatar.querySelector('#sidebar-avatar-text').textContent = '';
+          }
+        }
+      } catch (e) {
+        showNotification('Error', e.message, 'error');
+      }
+    });
+
+    document.getElementById('settings-close')?.addEventListener('click', () => {
+      document.getElementById('settings-modal').style.display = 'none';
+    });
+
+    window.app.setTheme = (theme) => {
+      if (theme === 'light') {
+        document.body.classList.add('light-theme');
+        document.body.classList.remove('dark-theme');
+        document.getElementById('theme-light').style.borderColor = 'var(--accent)';
+        document.getElementById('theme-dark').style.borderColor = 'transparent';
+      } else {
+        document.body.classList.add('dark-theme');
+        document.body.classList.remove('light-theme');
+        document.getElementById('theme-dark').style.borderColor = 'var(--accent)';
+        document.getElementById('theme-light').style.borderColor = 'transparent';
+      }
+    };
 
     // Global User Interaction Listener to resume AudioContext and play stuck media
     const resumeAudio = () => {
